@@ -2,6 +2,7 @@
 namespace ActiveEloquent;
 
 use Validator;
+use IoC;
 
 abstract class Base extends \Eloquent
 {
@@ -34,34 +35,28 @@ abstract class Base extends \Eloquent
 
 	public function __toString()
 	{
-		$id = $this->id ?: '(new)';
-		return get_called_class()." $id";
+		$class = get_called_class();
+		$id    = $this->id ?: '(new)';
+		return "{$class} {$id}";
 	}
 
 	public static function to_col($option = 'id', $value = 'name') { return static::to_collection($option, $value); }
 
-		public static function to_collection($option = 'id', $value = 'name')
-		{
-			$objects = static::organization_scope()->get();
-			$collection = array();
-			foreach ($objects as $object)
-			{
-				$collection[$object->$option] = $object->$value;
-			}
-
-			return $collection;
+	public static function to_collection($option = 'id', $value = 'name')
+	{
+		$objects = static::all();
+		$collection = array();
+		foreach ($objects as $object) {
+			$collection[$object->$option] = $object->$value;
 		}
 
-	public static function organization_scope($organization_id = null)
-	{
-		return static::where('organization_id', '=', $organization_id ?: IoC::resolve('tenancy')->organization()->id);
+		return $collection;
 	}
 
 	public function attr_accessors()
 	{
 		$accessors = array();
-		foreach (static::$attr_accessor as $a)
-		{
+		foreach (static::$attr_accessor as $a) {
 			$accessors[$a] = isset($this->$a) ? $this->$a : null;
 		}
 
@@ -75,7 +70,7 @@ abstract class Base extends \Eloquent
 
 	public function set_validation($rules = array(), $messages = array())
 	{
-		$this->custom_rules = $rules;
+		$this->custom_rules    = $rules;
 		$this->custom_messages = $messages;
 
 		return $this;
@@ -83,36 +78,28 @@ abstract class Base extends \Eloquent
 
 	public function is_valid($exceptions = false)
 	{
-		$valid = true;
-		$data = array();
-		$rules = $this->custom_rules ?: static::$rules;
+		$valid    = true;
+		$data     = array();
+		$rules    = $this->custom_rules ?: static::$rules;
 		$messages = $this->custom_messages ?: static::$messages;
 
 		$this->invoke_callback('before_validation');
 
-		if ($rules)
-		{
-			if ($this->exists)
-			{
+		if ($rules) {
+			if ($this->exists) {
 				$data = array_merge($this->get_dirty(), $this->attr_accessors());
 				$rules = array_intersect_key($rules, $data);
-			}
-			else
-			{
+			} else {
 				$data = array_merge($this->attributes, $this->attr_accessors());
 			}
 
 			$validator = Validator::make($data, $rules, $messages);
 
-			if ($valid = $validator->valid())
-			{
+			if ($valid = $validator->valid()) {
 				$this->error_handler->messages = array();
-			}
-			else
-			{
+			} else {
 				$this->errors = $validator->errors;
-				if ($exceptions)
-				{
+				if ($exceptions) {
 					throw new ValidationException($this->error_handler->messages);
 				}
 			}
@@ -127,21 +114,18 @@ abstract class Base extends \Eloquent
 	{
 		// Commenting out for now //if ( ! $this->dirty()) return true;
 
-		if (static::$timestamps)
-		{
+		if (static::$timestamps) {
 			$this->timestamp();
 		}
 
-		if ($force_save or $this->is_valid($exceptions))
-		{
+		if ($force_save or $this->is_valid($exceptions)) {
 			$this->fire_event('saving');
 			$this->invoke_callback('before_save');
 
 			// If the model exists, we only need to update it in the database, and the update
 			// will be considered successful if there is one affected row returned from the
 			// fluent query instance. We'll set the where condition automatically.
-			if ($this->exists)
-			{
+			if ($this->exists) {
 				$this->invoke_callback('before_update');
 
 				$query = $this->query()->where(static::$key, '=', $this->get_key());
@@ -156,8 +140,7 @@ abstract class Base extends \Eloquent
 			// If the model does not exist, we will insert the record and retrieve the last
 			// insert ID that is associated with the model. If the ID returned is numeric
 			// then we can consider the insert successful.
-			else
-			{
+			else {
 				$this->invoke_callback('before_create');
 
 				$id = $this->query()->insert_get_id($this->attributes, $this->sequence());
@@ -181,9 +164,7 @@ abstract class Base extends \Eloquent
 			$this->original = $this->attributes;
 
 			return $result;
-		}
-		else
-		{
+		} else {
 			return false;
 		}
 	}
@@ -254,7 +235,7 @@ abstract class Base extends \Eloquent
 						return $datetime;
 					}
 				} else {
-					return null;
+					return new NullDateTime;
 				}
 			} else {
 				return $this->{"get_{$key}"}();
@@ -301,7 +282,7 @@ abstract class Base extends \Eloquent
 					$value = $value instanceof DateTime ? $value : new DateTime(is_object($value) ? $value->format('Y-m-d H:i:s') : $value);
 					return $this->set_attribute($key, $value);
 				} else {
-					return null;
+					return new NullDateTime;
 				}
 			} else {
 				parent::__set($key, $value);
@@ -315,4 +296,3 @@ abstract class Base extends \Eloquent
 	}
 
 }
-
