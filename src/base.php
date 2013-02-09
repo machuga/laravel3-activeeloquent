@@ -13,7 +13,7 @@ abstract class Base extends \Eloquent
 
 	public static $rules              = array();
 	public static $messages           = array();
-	public static $attr_accessor      = array();
+	
 	protected static $valid_callbacks = array(
 		'before_validation',
 		'after_validation',
@@ -56,7 +56,7 @@ abstract class Base extends \Eloquent
 	public function attr_accessors()
 	{
 		$accessors = array();
-		foreach (static::$attr_accessor as $a) {
+		foreach (static::$accessible as $a) {
 			$accessors[$a] = isset($this->$a) ? $this->$a : null;
 		}
 
